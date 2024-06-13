@@ -7,7 +7,7 @@ const path = require('path');
 
 const app = express();
 
-// Middleware
+
 app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -17,7 +17,7 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// Multer storage configuration
+
 const storage = multer.diskStorage({
   destination: 'uploads/',
   filename: function(req, file, cb) {
@@ -29,7 +29,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Middleware to check if user is authenticated
+
 function requireLogin(req, res, next) {
   if (req.session && req.session.username) {
     return next();
@@ -38,19 +38,18 @@ function requireLogin(req, res, next) {
   }
 }
 
-// Routes
+
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  // Check credentials (this is a simple example, you should use more secure authentication)
-  if (username === 'admin' && password === 'password') {
+  if (username === 'gdps' && password === 'ccprojects') {
     req.session.username = username;
     res.redirect('/dashboard');
   } else {
-    res.status(401).send('Unauthorized');
+    res.status(401).send('❓ Unauthorized Or Incorrect Password or Username');
   }
 });
 
