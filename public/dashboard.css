@@ -1,0 +1,34 @@
+body {
+  background: linear-gradient(to bottom right, #98ee99, #77dd77);
+  font-family: Arial, sans-serif;
+}
+
+.level-card {
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  padding: 10px;
+  transition: opacity 0.5s ease;
+}
+
+.level-card img {
+  max-width: 100%;
+  height: auto;
+}
+
+.watermark {
+  position: fixed;
+  bottom: 5px;
+  right: 10px;
+  font-size: 12px;
+  color: gray;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

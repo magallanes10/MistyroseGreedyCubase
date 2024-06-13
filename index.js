@@ -1,4 +1,5 @@
 const express = require('express');
+const session = require('express-session');
 const multer = require('multer');
 const bodyParser = require('body-parser');
 const fs = require('fs');
@@ -6,8 +7,17 @@ const path = require('path');
 
 const app = express();
 
+// Middleware
 app.use(express.static('public'));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(session({
+  secret: 'your_secret_key_here',
+  resave: false,
+  saveUninitialized: true
+}));
 
+// Multer storage configuration
 const storage = multer.diskStorage({
   destination: 'uploads/',
   filename: function(req, file, cb) {
@@ -19,10 +29,45 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Middleware to check if user is authenticated
+function requireLogin(req, res, next) {
+  if (req.session && req.session.username) {
+    return next();
+  } else {
+    return res.redirect('/login');
+  }
+}
 
-app.post('/upload', upload.single('thumbnail'), (req, res) => {
+// Routes
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body;
+  // Check credentials (this is a simple example, you should use more secure authentication)
+  if (username === 'admin' && password === 'password') {
+    req.session.username = username;
+    res.redirect('/dashboard');
+  } else {
+    res.status(401).send('Unauthorized');
+  }
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Error destroying session:', err);
+    }
+    res.redirect('/login');
+  });
+});
+
+app.get('/dashboard', requireLogin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.post('/upload', requireLogin, upload.single('thumbnail'), (req, res) => {
   const difficulty = req.body.difficulty;
   const answer = req.body.answer;
   const file = req.file;
@@ -33,7 +78,7 @@ app.post('/upload', upload.single('thumbnail'), (req, res) => {
 
   const levelData = {
     Difficulty: difficulty,
-    Thumbnail: `api/image?src=uploads/${file.filename}`,
+    Thumbnail: `api/image?src=/${file.filename}`,
     Answer: answer,
   };
 
@@ -52,13 +97,7 @@ app.post('/upload', upload.single('thumbnail'), (req, res) => {
   res.json(levelData);
 });
 
-app.get('/api/image', (req, res) => {
-  const src = req.query.src;
-  const filePath = path.join(__dirname, 'uploads', src);
-  res.sendFile(filePath);
-});
-
-app.get('/levels', (req, res) => {
+app.get('/levels', requireLogin, (req, res) => {
   fs.readFile('levels.json', (err, data) => {
     if (err) {
       return res.status(500).json({ error: 'Internal server error' });
@@ -68,17 +107,70 @@ app.get('/levels', (req, res) => {
   });
 });
 
+app.delete('/levels/:id', requireLogin, (req, res) => {
+  const levelId = req.params.id;
+
+  fs.readFile('levels.json', (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    let levels = JSON.parse(data);
+    if (levelId >= 0 && levelId < levels.length) {
+      levels.splice(levelId, 1); 
+      fs.writeFileSync('levels.json', JSON.stringify(levels, null, 2));
+      res.json({ message: 'Level deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Level not found' });
+    }
+  });
+});
+
+app.put('/levels/:id', requireLogin, (req, res) => {
+  const levelId = req.params.id;
+  const { Difficulty, Answer } = req.body;
+
+  fs.readFile('levels.json', (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    let levels = JSON.parse(data);
+    if (levelId >= 0 && levelId < levels.length) {
+      levels[levelId].Difficulty = Difficulty;
+      levels[levelId].Answer = Answer;
+      fs.writeFileSync('levels.json', JSON.stringify(levels, null, 2));
+      res.json({ message: 'Level updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Level not found' });
+    }
+  });
+});
+
+app.get('/api/image', requireLogin, (req, res) => {
+  const src = req.query.src;
+  const filePath = path.join(__dirname, src);
+  res.sendFile(filePath);
+});
 app.get('/guess', (req, res) => {
   fs.readFile('levels.json', (err, data) => {
-    let levels = [];
-    if (!err && data) {
-      levels = JSON.parse(data);
+    if (err) {
+      return res.status(500).json({ error: 'Failed to read levels' });
     }
+
+    let levels = [];
+    try {
+      levels = JSON.parse(data);
+    } catch (error) {
+      return res.status(500).json({ error: 'Failed to parse levels JSON' });
+    }
+
     if (levels.length === 0) {
       return res.status(404).json({ error: 'No levels available' });
     }
+
     const randomLevelIndex = Math.floor(Math.random() * levels.length);
-    const randomLevel = levels[randomLevelIndex];
+    const randomLevel = levels.splice(randomLevelIndex, 1)[0];
     res.json(randomLevel);
   });
 });
