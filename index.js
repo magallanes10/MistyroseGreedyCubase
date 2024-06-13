@@ -76,7 +76,7 @@ app.post('/upload', requireLogin, upload.single('thumbnail'), (req, res) => {
 
   const levelData = {
     Difficulty: difficulty,
-    Thumbnail: `api/image?src=/${file.filename}`,
+    Thumbnail: `api/image?src=/uploads/${file.filename}`,
     Answer: answer,
   };
 
