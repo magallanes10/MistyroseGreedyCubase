@@ -28,7 +28,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 function requireLogin(req, res, next) {
-  if (req.path === '/api/image') {
+  if (req.path === '/api/image' || req.path === '/upload') {
     return next();
   }
   if (req.session && req.session.username) {
@@ -48,7 +48,7 @@ app.post('/login', (req, res) => {
     req.session.username = username;
     res.redirect('/dashboard');
   } else {
-    res.status(401).send('❓ Unauthorized Or Incorrect Password or Username');
+    res.status(401).send('Unauthorized');
   }
 });
 
@@ -76,7 +76,7 @@ app.post('/upload', requireLogin, upload.single('thumbnail'), (req, res) => {
 
   const levelData = {
     Difficulty: difficulty,
-    Thumbnail: `api/image?src=/uploads/${file.filename}`,
+    Thumbnail: `api/image?src=/${file.filename}`,
     Answer: answer,
   };
 
