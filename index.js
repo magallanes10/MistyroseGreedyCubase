@@ -7,7 +7,6 @@ const path = require('path');
 
 const app = express();
 
-
 app.use(express.static('public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -16,7 +15,6 @@ app.use(session({
   resave: false,
   saveUninitialized: true
 }));
-
 
 const storage = multer.diskStorage({
   destination: 'uploads/',
@@ -29,8 +27,10 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-
 function requireLogin(req, res, next) {
+  if (req.path === '/api/image') {
+    return next();
+  }
   if (req.session && req.session.username) {
     return next();
   } else {
@@ -38,14 +38,13 @@ function requireLogin(req, res, next) {
   }
 }
 
-
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
-  if (username === 'gdps' && password === 'ccprojects') {
+  if (username === 'admin' && password === 'password') {
     req.session.username = username;
     res.redirect('/dashboard');
   } else {
@@ -77,7 +76,7 @@ app.post('/upload', requireLogin, upload.single('thumbnail'), (req, res) => {
 
   const levelData = {
     Difficulty: difficulty,
-    Thumbnail: `api/image?src=/${file.filename}`,
+    Thumbnail: `api/image?src=/uploads/${file.filename}`,
     Answer: answer,
   };
 
@@ -151,6 +150,7 @@ app.get('/api/image', requireLogin, (req, res) => {
   const filePath = path.join(__dirname, src);
   res.sendFile(filePath);
 });
+
 app.get('/guess', (req, res) => {
   fs.readFile('levels.json', (err, data) => {
     if (err) {
